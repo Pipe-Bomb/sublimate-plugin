@@ -20,6 +20,6 @@
 		"typescript": "^7.0.2"
 	},
 	"dependencies": {
-		"@pipe-bomb/plugin-sdk": "file:../../sdk"
+		"@pipe-bomb/plugin-sdk": "^0.5.0"
 	}
 }
