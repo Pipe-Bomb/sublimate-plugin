@@ -43,10 +43,15 @@ function fromAttributeValue(attribute: AttributeValue): CandidateAttribute {
 }
 
 export function toLibraryCandidate(track: SavedTrack): MatchCandidate<SavedTrack> {
+	const attributes = (track.attributes ?? []).map(fromSavedAttribute);
+	const titleAttribute = attributes.find(
+		(attribute) => attribute.key === "title" && attribute.type === "string",
+	);
+	const titleValue = titleAttribute?.values?.[0];
 	return {
 		value: track,
-		title: track.title,
-		attributes: (track.attributes ?? []).map(fromSavedAttribute),
+		title: typeof titleValue === "string" && titleValue ? titleValue : track.title,
+		attributes,
 		artists: (track.artists ?? []).map((entry) =>
 			(entry.artist?.attributes ?? []).map(fromSavedAttribute),
 		),

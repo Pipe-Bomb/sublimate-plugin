@@ -114,6 +114,15 @@ export class SearchClient {
 		return null;
 	}
 
+	async debugFindTrack(options: FindTrackOptions): Promise<{
+		library: MatchOutcome<SavedTrack> | null;
+		ephemeral: MatchOutcome<EphemeralCandidateSource> | null;
+	}> {
+		const library = await this.matchLibraryTracks(options);
+		const ephemeral = await this.matchEphemeralTracks(options);
+		return { library, ephemeral };
+	}
+
 	private async matchLibraryTracks(
 		options: FindTrackOptions,
 	): Promise<MatchOutcome<SavedTrack> | null> {

@@ -14,12 +14,12 @@ export const MATCH_ATTRIBUTE_WEIGHTS: Record<
 > = {
 	track: {
 		title: 3,
-		artist: 3,
-		album: 2,
-		duration: 1.5,
-		bpm: 0.75,
-		genre: 0.5,
-		year: 0.5,
+		artist: 10,
+		album: 5,
+		duration: 0.5,
+		bpm: 0.25,
+		genre: 0.25,
+		year: 0.25,
 	},
 	artist: {
 		name: 3,
@@ -220,6 +220,52 @@ function valueScore(
 	}
 }
 
+const GENERIC_TOKENS = new Set([
+	"extended",
+	"original",
+	"mix",
+	"remix",
+	"edit",
+	"rework",
+	"version",
+	"vocal",
+	"club",
+	"radio",
+	"instrumental",
+	"dub",
+	"bootleg",
+	"vip",
+	"feat",
+	"ft",
+	"with",
+	"the",
+	"and",
+]);
+
+function distinctiveTokens(value: string): Set<string> {
+	const all = normalize(value)
+		.split(" ")
+		.filter(Boolean);
+	const distinctive = all.filter((token) => !GENERIC_TOKENS.has(token));
+	return new Set(distinctive.length ? distinctive : all);
+}
+
+function tokenOverlap(a: string, b: string): number {
+	const left = distinctiveTokens(a);
+	const right = distinctiveTokens(b);
+	if (!left.size || !right.size) {
+		return 1;
+	}
+	let intersection = 0;
+	for (const token of left) {
+		if (right.has(token)) {
+			intersection++;
+		}
+	}
+	const union = left.size + right.size - intersection;
+	return union ? intersection / union : 1;
+}
+
 export function stringSimilarity(a: string, b: string): number {
 	const left = normalize(a);
 	const right = normalize(b);
@@ -228,7 +274,8 @@ export function stringSimilarity(a: string, b: string): number {
 		return 1;
 	}
 
-	return 0.3 * fullRatio(left, right) + 0.7 * partialRatio(left, right);
+	const base = 0.3 * fullRatio(left, right) + 0.7 * partialRatio(left, right);
+	return base * (0.4 + 0.6 * tokenOverlap(a, b));
 }
 
 function normalize(value: string): string {
