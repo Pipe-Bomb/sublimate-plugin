@@ -1,19 +1,33 @@
-import { SavedAttribute } from "@pipe-bomb/plugin-sdk";
 import { SearchAttribute, SupportedAttributeType } from "./attribute-entry.js";
+import { CandidateAttribute } from "./match-candidate.js";
 
 export type AttributeMatchResult = {
 	key: string;
 	score: number | null;
 };
 
-export const MATCH_ATTRIBUTE_WEIGHTS: Record<string, number> = {
-	title: 3,
-	artist: 3,
-	album: 2,
-	duration: 1.5,
-	bpm: 0.75,
-	genre: 0.5,
-	year: 0.5,
+export type MatchEntityType = "track" | "artist" | "album";
+
+export const MATCH_ATTRIBUTE_WEIGHTS: Record<
+	MatchEntityType,
+	Record<string, number>
+> = {
+	track: {
+		title: 3,
+		artist: 3,
+		album: 2,
+		duration: 1.5,
+		bpm: 0.75,
+		genre: 0.5,
+		year: 0.5,
+	},
+	artist: {
+		name: 3,
+	},
+	album: {
+		title: 3,
+		year: 1,
+	},
 };
 
 const DEFAULT_ATTRIBUTE_WEIGHT = 1;
@@ -22,24 +36,24 @@ const EVIDENCE_SATURATION = 2;
 
 export function compareSearchAttributes(
 	searchAttributes: SearchAttribute[],
-	savedAttribute: SavedAttribute,
+	candidateAttribute: CandidateAttribute,
 ): number | null {
 	const first = searchAttributes[0];
 	if (!first) {
 		return null;
 	}
 
-	if (first.key !== savedAttribute.key || first.type !== savedAttribute.type) {
+	if (first.key !== candidateAttribute.key) {
 		return null;
 	}
 
-	if (!savedAttribute.values.length) {
+	if (!candidateAttribute.values.length) {
 		return null;
 	}
 
 	const scores = searchAttributes
 		.map((attribute) =>
-			bestValueScore(attribute.value, savedAttribute.values, first.type),
+			bestValueScore(attribute.value, candidateAttribute.values, first.type),
 		)
 		.filter((score): score is number => score !== null);
 
@@ -48,6 +62,122 @@ export function compareSearchAttributes(
 	}
 
 	return scores.reduce((total, score) => total + score, 0) / scores.length;
+}
+
+export function compareAttributeSets(
+	searchAttributes: SearchAttribute[],
+	candidateAttributes: CandidateAttribute[],
+	entityType: MatchEntityType,
+): number | null {
+	const groups = new Map<
+		string,
+		{ key: string; type: SupportedAttributeType; values: unknown[] }
+	>();
+
+	for (const attribute of searchAttributes) {
+		const groupKey = `${attribute.key}:${attribute.type}`;
+		let group = groups.get(groupKey);
+		if (!group) {
+			group = { key: attribute.key, type: attribute.type, values: [] };
+			groups.set(groupKey, group);
+		}
+		group.values.push(attribute.value);
+	}
+
+	let totalWeight = 0;
+	let weightedScore = 0;
+
+	for (const group of groups.values()) {
+		const candidates = candidateAttributes.filter(
+			(attribute) => attribute.key === group.key,
+		);
+		if (!candidates.length) {
+			continue;
+		}
+
+		const savedValues: unknown[] = candidates.flatMap(
+			(attribute) => attribute.values,
+		);
+		const scores = group.values
+			.map((value) => bestValueScore(value, savedValues, group.type))
+			.filter((score): score is number => score !== null);
+		if (!scores.length) {
+			continue;
+		}
+
+		const keyScore = scores.reduce((total, score) => total + score, 0) / scores.length;
+		const weight = attributeWeight(entityType, group.key);
+
+		totalWeight += weight;
+		weightedScore += weight * keyScore;
+	}
+
+	if (totalWeight === 0) {
+		return null;
+	}
+
+	return weightedScore / totalWeight;
+}
+
+export function compareEntitySets<TInput, TCandidate>(
+	input: TInput[],
+	candidate: TCandidate[],
+	similarity: (input: TInput, candidate: TCandidate) => number | null,
+): number | null {
+	if (!input.length) {
+		return null;
+	}
+
+	if (!candidate.length) {
+		return 0;
+	}
+
+	const pairs: { inputIndex: number; candidateIndex: number; score: number }[] =
+		[];
+
+	for (let inputIndex = 0; inputIndex < input.length; inputIndex++) {
+		for (
+			let candidateIndex = 0;
+			candidateIndex < candidate.length;
+			candidateIndex++
+		) {
+			const score = similarity(input[inputIndex]!, candidate[candidateIndex]!);
+			if (score !== null) {
+				pairs.push({ inputIndex, candidateIndex, score });
+			}
+		}
+	}
+
+	pairs.sort((a, b) => b.score - a.score);
+
+	if (!pairs.length) {
+		return null;
+	}
+
+	const usedInputs = new Set<number>();
+	const usedCandidates = new Set<number>();
+	let matchedScore = 0;
+
+	for (const pair of pairs) {
+		if (
+			usedInputs.has(pair.inputIndex) ||
+			usedCandidates.has(pair.candidateIndex)
+		) {
+			continue;
+		}
+		usedInputs.add(pair.inputIndex);
+		usedCandidates.add(pair.candidateIndex);
+		matchedScore += pair.score;
+	}
+
+	if (matchedScore === 0) {
+		return 0;
+	}
+
+	const recall = matchedScore / input.length;
+	const precision = matchedScore / candidate.length;
+
+	return (2 * recall * precision) / (recall + precision);
 }
 
 function bestValueScore(
@@ -170,12 +300,16 @@ function levenshteinDistance(a: string, b: string): number {
 	return distances[b.length]!;
 }
 
-function attributeWeight(key: string): number {
-	return MATCH_ATTRIBUTE_WEIGHTS[key.toLowerCase()] ?? DEFAULT_ATTRIBUTE_WEIGHT;
+function attributeWeight(entityType: MatchEntityType, key: string): number {
+	return (
+		MATCH_ATTRIBUTE_WEIGHTS[entityType][key.toLowerCase()] ??
+		DEFAULT_ATTRIBUTE_WEIGHT
+	);
 }
 
 export function totalMatchConfidence(
 	results: AttributeMatchResult[],
+	entityType: MatchEntityType = "track",
 ): number | null {
 	if (!results.length) {
 		return null;
@@ -187,7 +321,7 @@ export function totalMatchConfidence(
 	let agreementWeight = 0;
 
 	for (const { key, score } of results) {
-		const weight = attributeWeight(key);
+		const weight = attributeWeight(entityType, key);
 		totalWeight += weight;
 
 		if (score === null) {
