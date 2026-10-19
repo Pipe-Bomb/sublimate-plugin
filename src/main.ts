@@ -11,7 +11,7 @@ export default class EphemeralImportPlugin implements Plugin {
 	private searchClient: ActiveClient | null = null;
 
 	enable(apiContext: PluginApiContext): void | Promise<void> {
-		apiContext.getEphemeralSources();
+		apiContext.registerLanguageDirectory("lang");
 
 		const clientPayload = new SearchClientPayload();
 		this.searchClient = {
