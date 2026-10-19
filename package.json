@@ -6,6 +6,7 @@
 	"types": "dist/index.d.ts",
 	"scripts": {
 		"build": "rimraf dist && tsc",
+		"prepare": "npm run build",
 		"dev": "nodemon -w src -e ts -x \"npm run build || exit 1\""
 	},
 	"exports": {
