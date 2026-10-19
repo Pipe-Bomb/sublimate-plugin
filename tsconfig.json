@@ -28,7 +28,9 @@
 		"noUncheckedIndexedAccess": true, // Forces handling of undefined when accessing arrays by index
 		"forceConsistentCasingInFileNames": true,
 		"esModuleInterop": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"declaration": true,
+		"declarationMap": true
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"]

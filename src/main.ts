@@ -7,7 +7,7 @@ interface ActiveClient {
 	payload: SearchClientPayload;
 }
 
-export default class EphemeralImportPlugin implements Plugin {
+export default class SublimatePlugin implements Plugin {
 	private searchClient: ActiveClient | null = null;
 
 	enable(apiContext: PluginApiContext): void | Promise<void> {

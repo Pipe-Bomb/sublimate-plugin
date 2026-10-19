@@ -33,7 +33,7 @@ interface Props {
 	getSearchSource: () => SearchSource | null;
 }
 
-interface FindTrackOptions {
+export interface FindTrackOptions {
 	title: string;
 	attributes?: SearchAttribute[];
 	artists?: SearchAttribute[][];
