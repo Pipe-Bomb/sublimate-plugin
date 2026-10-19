@@ -29,8 +29,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"esModuleInterop": true,
 		"skipLibCheck": true,
-		"declaration": true,
-		"declarationMap": true
+		"declaration": true
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"]

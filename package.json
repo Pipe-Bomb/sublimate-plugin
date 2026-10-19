@@ -2,8 +2,10 @@
 	"name": "sublimate",
 	"version": "1.0.0",
 	"description": "Plugin library for searching across multiple ephemeral sources",
+	"main": "dist/index.js",
 	"pipebombEntry": "dist/main.js",
 	"types": "dist/index.d.ts",
+	"files": ["dist", "lang"],
 	"scripts": {
 		"build": "rimraf dist && tsc",
 		"prepare": "npm run build",
@@ -11,8 +13,15 @@
 	},
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts"
-		}
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./main.js": {
+			"types": "./dist/main.d.ts",
+			"import": "./dist/main.js"
+		},
+		"./package.json": "./package.json"
 	},
 	"keywords": [],
 	"author": "",
@@ -22,6 +31,7 @@
 		"node": "24.21.0"
 	},
 	"devDependencies": {
+		"@types/node": "^26.6.5",
 		"nodemon": "^3.1.14",
 		"rimraf": "^6.1.3",
 		"typescript": "^7.0.2"
